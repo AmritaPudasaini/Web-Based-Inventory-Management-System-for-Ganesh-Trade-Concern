@@ -1,6 +1,6 @@
 
 from django.db import models
-
+from decimal import Decimal
 
 # ==========================================
 # 1. CATEGORY
@@ -70,6 +70,7 @@ class Customer(models.Model):
 # ==========================================
 
 class Product(models.Model):
+    
 
     BASE_UNIT_CHOICES = [
         ("bottle", "Bottle"),
@@ -96,7 +97,11 @@ class Product(models.Model):
     )
 
     units_per_carton = models.PositiveIntegerField(default=12)
-
+    low_stock_threshold = models.DecimalField(
+    max_digits=14,
+    decimal_places=2,
+    default=Decimal("0.00"),
+)
     purchase_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,

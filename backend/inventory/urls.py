@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     CategoryViewSet,
+    DashboardViewSet,
     SupplierViewSet,
     CustomerViewSet,
     ProductViewSet,
@@ -21,5 +22,6 @@ router.register("products", ProductViewSet, basename="product")
 router.register("purchases", PurchaseViewSet, basename="purchase")
 router.register("sales", SaleViewSet, basename="sale")
 router.register("stock", StockViewSet, basename="stock")
+router.register("dashboard", DashboardViewSet, basename="dashboard")
 
 urlpatterns = router.urls

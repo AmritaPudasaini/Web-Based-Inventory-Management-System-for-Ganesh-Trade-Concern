@@ -1,5 +1,5 @@
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import api from '../services/api'
 import {
   Plus,
   Search,
@@ -8,57 +8,6 @@ import {
   Package,
   X,
 } from 'lucide-react'
-
-const initialProducts = [
-  {
-    id: 1,
-    name: 'Khukuri Rum',
-    sku: 'KHU-001',
-    brand: 'Khukuri',
-    category: 'Rum',
-    baseUnit: 'bottle',
-    cartonSize: 12,
-    purchasePrice: 1800,
-    sellingPrice: 2200,
-    stock: 162,
-  },
-  {
-    id: 2,
-    name: '8848 Vodka',
-    sku: 'VOD-002',
-    brand: '8848',
-    category: 'Vodka',
-    baseUnit: 'bottle',
-    cartonSize: 12,
-    purchasePrice: 2100,
-    sellingPrice: 2500,
-    stock: 96,
-  },
-  {
-    id: 3,
-    name: 'Signature Whisky',
-    sku: 'WHI-003',
-    brand: 'Signature',
-    category: 'Whisky',
-    baseUnit: 'bottle',
-    cartonSize: 12,
-    purchasePrice: 1600,
-    sellingPrice: 1950,
-    stock: 48,
-  },
-  {
-    id: 4,
-    name: 'Tuborg Beer',
-    sku: 'BEER-004',
-    brand: 'Tuborg',
-    category: 'Beer',
-    baseUnit: 'bottle',
-    cartonSize: 12,
-    purchasePrice: 180,
-    sellingPrice: 240,
-    stock: 24,
-  },
-]
 
 const emptyForm = {
   name: '',
@@ -72,11 +21,61 @@ const emptyForm = {
 }
 
 export default function Products() {
-  const [products, setProducts] = useState(initialProducts)
-  const [search, setSearch] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState(emptyForm)
-  const [editingId, setEditingId] = useState(null)
+  const [products, setProducts] = useState([])
+const [categories, setCategories] = useState([])
+const [search, setSearch] = useState('')
+const [isModalOpen, setIsModalOpen] = useState(false)
+const [formData, setFormData] = useState(emptyForm)
+const [editingId, setEditingId] = useState(null)
+const [loading, setLoading] = useState(true)
+const [error, setError] = useState('')
+
+async function loadData() {
+  try {
+    setLoading(true)
+    setError('')
+
+    const [productResponse, categoryResponse, stockResponse] =
+      await Promise.all([
+        api.get('products/'),
+        api.get('categories/'),
+        api.get('stock/'),
+      ])
+
+    const stockByProduct = new Map(
+      stockResponse.data.map((item) => [
+        item.product_id,
+        Number(item.current_stock),
+      ]),
+    )
+
+    const formattedProducts = productResponse.data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      brand: product.brand,
+      category: product.category_name,
+      categoryId: product.category,
+      baseUnit: product.base_unit,
+      cartonSize: product.units_per_carton,
+      purchasePrice: Number(product.purchase_price),
+      sellingPrice: Number(product.selling_price),
+      stock: stockByProduct.get(product.id) ?? 0,
+    }))
+
+    setProducts(formattedProducts)
+    setCategories(categoryResponse.data.filter((category) => category.is_active))
+  } catch (err) {
+    console.error('Failed to load products:', err)
+    setError('Unable to load products. Please check that the backend is running.')
+  } finally {
+    setLoading(false)
+  }
+}
+
+useEffect(() => {
+  loadData()
+}, [])
 
   const filteredProducts = products.filter((product) =>
     `${product.name} ${product.sku} ${product.brand} ${product.category}`
@@ -101,60 +100,82 @@ export default function Products() {
 
   function openEditModal(product) {
     setFormData({
-      name: product.name,
-      sku: product.sku,
-      brand: product.brand,
-      category: product.category,
-      baseUnit: product.baseUnit,
-      cartonSize: String(product.cartonSize),
-      purchasePrice: String(product.purchasePrice),
-      sellingPrice: String(product.sellingPrice),
-    })
+    name: product.name,
+    sku: product.sku,
+    brand: product.brand || '',
+    category: String(product.categoryId),
+    baseUnit: product.baseUnit,
+    cartonSize: String(product.cartonSize),
+    purchasePrice: String(product.purchasePrice),
+    sellingPrice: String(product.sellingPrice),
+  })
 
     setEditingId(product.id)
     setIsModalOpen(true)
   }
 
-  function handleSubmit(e) {
-    e.preventDefault()
+async function handleSubmit(e) {
+  e.preventDefault()
+
+  try {
+    setError('')
 
     const productData = {
-      ...formData,
-      cartonSize: Number(formData.cartonSize),
-      purchasePrice: Number(formData.purchasePrice),
-      sellingPrice: Number(formData.sellingPrice),
+      name: formData.name.trim(),
+      sku: formData.sku.trim(),
+      brand: formData.brand.trim(),
+      category: Number(formData.category),
+      base_unit: formData.baseUnit,
+      units_per_carton: Number(formData.cartonSize),
+      purchase_price: Number(formData.purchasePrice),
+      selling_price: Number(formData.sellingPrice),
     }
 
     if (editingId !== null) {
-      setProducts((prev) =>
-        prev.map((product) =>
-          product.id === editingId
-            ? { ...product, ...productData }
-            : product,
-        ),
-      )
+      await api.put(`products/${editingId}/`, productData)
     } else {
-      const newProduct = {
-        ...productData,
-        id: Date.now(),
-        stock: 0,
-      }
-
-      setProducts((prev) => [newProduct, ...prev])
+      await api.post('products/', productData)
     }
 
     setIsModalOpen(false)
     setFormData(emptyForm)
     setEditingId(null)
-  }
 
-  function handleDelete(id) {
+    await loadData()
+  } catch (err) {
+    console.error('Failed to save product:', err)
+
+    const responseData = err.response?.data
+    setError(
+      typeof responseData === 'object'
+        ? Object.entries(responseData)
+            .map(([field, messages]) =>
+              `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`,
+            )
+            .join(' | ')
+        : 'Unable to save product. Please try again.',
+    )
+  }
+}
+
+  async function handleDelete(id) {
     const confirmed = window.confirm(
       'Are you sure you want to delete this product?',
     )
 
-    if (confirmed) {
-      setProducts((prev) => prev.filter((product) => product.id !== id))
+    if (!confirmed) return
+
+    try {
+      setError('')
+      await api.delete(`products/${id}/`)
+      await loadData()
+    } catch (err) {
+      console.error('Failed to delete product:', err)
+
+      setError(
+        err.response?.data?.detail ||
+        'Unable to delete this product.',
+      )
     }
   }
 
@@ -164,6 +185,17 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
+      {error && (
+  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+    {error}
+  </div>
+)}
+
+{loading && (
+  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+    Loading products from database...
+  </div>
+)}
       {/* Page heading */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -404,14 +436,21 @@ export default function Products() {
                     Category *
                   </label>
 
-                  <input
+                  <select
                     required
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    placeholder="Enter category"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                  />
+                  >
+                    <option value="">Select category</option>
+
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
