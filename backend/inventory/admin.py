@@ -8,10 +8,30 @@ from .models import (
     Product,
     Purchase,
     PurchaseItem,
+    Sale,
+    SaleItem,
     StockMovement,
 )
 from .services import complete_purchase
 
+
+class SaleItemInline(admin.TabularInline):
+    model = SaleItem
+    extra = 1
+
+
+@admin.register(Sale)
+class SaleAdmin(admin.ModelAdmin):
+    list_display = (
+        "invoice_number",
+        "customer",
+        "sale_date",
+        "status",
+    )
+    search_fields = ("invoice_number", "customer__shop_name")
+    list_filter = ("status", "sale_date")
+    inlines = [SaleItemInline]
+    readonly_fields = ("status", "created_at", "updated_at")
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

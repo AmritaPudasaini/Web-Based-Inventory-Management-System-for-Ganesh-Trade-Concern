@@ -227,6 +227,112 @@ class PurchaseItem(models.Model):
 
 
 # ==========================================
+# 7. SALE
+# ==========================================
+
+class Sale(models.Model):
+
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("completed", "Completed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    invoice_number = models.CharField(
+        max_length=100,
+        unique=True,
+    )
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="sales",
+    )
+
+    sale_date = models.DateField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft",
+    )
+
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-sale_date", "-id"]
+
+    def __str__(self):
+        return self.invoice_number
+
+
+# ==========================================
+# 8. SALE ITEM
+# ==========================================
+
+class SaleItem(models.Model):
+
+    UNIT_CHOICES = [
+        ("carton", "Carton"),
+        ("bottle", "Bottle"),
+        ("piece", "Piece"),
+        ("packet", "Packet"),
+        ("kg", "Kilogram"),
+        ("liter", "Liter"),
+    ]
+
+    sale = models.ForeignKey(
+        Sale,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="sale_items",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    sale_unit = models.CharField(
+        max_length=20,
+        choices=UNIT_CHOICES,
+    )
+
+    conversion_factor = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+    )
+
+    base_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+
+    unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    total_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+
+    def __str__(self):
+        return f"{self.product.name} - {self.sale.invoice_number}"
+
+# ==========================================
 # 7. STOCK MOVEMENT
 # ==========================================
 

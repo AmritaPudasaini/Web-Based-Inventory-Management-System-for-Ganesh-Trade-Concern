@@ -9,6 +9,8 @@ import Customers from './pages/Customers'
 import Purchases from './pages/Purchases'
 import Sales from './pages/Sales'
 import Stock from './pages/Stock'
+import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 
 function PlaceholderPage({ name }) {
   return (
@@ -38,8 +40,8 @@ export default function App() {
           <Route path="sales" element={<Sales />} />
           <Route path="customers" element={<Customers />} />
           <Route path="stock" element={<Stock />} />
-          <Route path="reports" element={<PlaceholderPage name="Reports" />} />
-          <Route path="settings" element={<PlaceholderPage name="Settings" />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
